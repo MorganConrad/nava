@@ -16,7 +16,7 @@ import java.util.HashMap;
  * @author Morgan Conrad
  * @since Copyright(c) 2013  Morgan Conrad
  *
- * @see <a href="http://www.gnu.org/copyleft/lesser.html">This software is released under the LGPL</a>
+ * @see <a href="http://opensource.org/licenses/MIT">This software is released under the MIT License</a>
  */
 
 @SuppressWarnings({"rawtypes", "unchecked"})
