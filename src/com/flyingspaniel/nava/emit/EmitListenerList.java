@@ -49,9 +49,14 @@ public class EmitListenerList<A0> implements Emit.IListenerList<A0> {
     * @param listener  if null nothing happens.
     */
    @Override
-   public synchronized void on(Emit.IListener<A0> listener) {
+   public void on(Emit.IListener<A0> listener) {
       if (listener != null) {
-         if (allowDuplicates || !listeners.contains(listener))
+         boolean ok  = allowDuplicates;
+         if (!ok) synchronized (this) {
+            ok =  !listeners.contains(listener);
+         }
+
+         if (ok)
             listeners.add(listener);
       }
    }
@@ -66,7 +71,7 @@ public class EmitListenerList<A0> implements Emit.IListenerList<A0> {
     * 
     * @param listener  if null nothing happens.
     */
-   public void once(Emit.IListener<A0> listener) {
+   public synchronized void once(Emit.IListener<A0> listener) {
       if (listener != null) {
          
          addListener(listener);
@@ -86,7 +91,7 @@ public class EmitListenerList<A0> implements Emit.IListenerList<A0> {
     * 
     * @param listener  if null nothing happens.  They expect an <A0> as their first arg to the callback
     */
-   public synchronized void removeListener(Emit.IListener<A0> listener) {
+   public void removeListener(Emit.IListener<A0> listener) {
       if (listener != null)
          listeners.remove(listener);
    }

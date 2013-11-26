@@ -3,7 +3,7 @@ package com.flyingspaniel.nava.emit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -24,7 +24,7 @@ public class Emitter implements Emit.IEmitter {
    		
    protected int maxListeners = 10;
    
-   protected HashMap<Object, Emit.IListenerList> idMap = null;
+   final protected ConcurrentHashMap<Object, Emit.IListenerList> idMap = new ConcurrentHashMap<Object, Emit.IListenerList>();
    
    // default is false
    final protected boolean allowDuplicates;
@@ -54,13 +54,13 @@ public class Emitter implements Emit.IEmitter {
     * @return this
     */
    @Override 
-   public synchronized <A0> Emitter on(Object eventID, Emit.IListener<A0> listener) {
+   public <A0> Emitter on(Object eventID, Emit.IListener<A0> listener) {
       if (listener != null) {
          emit(Emit.NEW_LISTENER, eventID);  // note: fired before adding
-         Emit.IListenerList<A0> emitter = getEmitter(eventID, true);               
-         if (emitter.listenerCount() >= maxListeners)
+         Emit.IListenerList<A0> listenersForID = getListenerList(eventID, true);
+         if (listenersForID.listenerCount() >= maxListeners)
                throw new IllegalStateException("Exceeded maxListenener count of " + maxListeners);
-         emitter.on(listener);
+         listenersForID.on(listener);
       }
       
       return this;
@@ -81,13 +81,13 @@ public class Emitter implements Emit.IEmitter {
     * @param  <A0>      what listener expects as arg0
     * @return this
     */
-   public synchronized <A0> Emitter once(Object eventID, Emit.IListener<A0> listener) {
+   public <A0> Emitter once(Object eventID, Emit.IListener<A0> listener) {
       if (listener != null) {
          emit(Emit.NEW_LISTENER, eventID);  // note: fired before adding
-         Emit.IListenerList<A0> emitter = getEmitter(eventID, true);               
-         if (emitter.listenerCount() >= maxListeners)
+         Emit.IListenerList<A0> listenersForID = getListenerList(eventID, true);
+         if (listenersForID.listenerCount() >= maxListeners)
                throw new IllegalStateException("Exceeded maxListenener count of " + maxListeners);
-         emitter.once(listener);
+         listenersForID.once(listener);
       }
       
       return this;
@@ -105,11 +105,11 @@ public class Emitter implements Emit.IEmitter {
     * @return           this
     */
    @Override
-   public synchronized <A0> Emitter removeListener(Object eventID, Emit.IListener<A0> listener) {
+   public <A0> Emitter removeListener(Object eventID, Emit.IListener<A0> listener) {
       if (listener != null) {
-         Emit.IListenerList<A0> e1 = getEmitter(eventID, false);
-         if (e1 != null)
-            e1.removeListener(listener);
+         Emit.IListenerList<A0> listenersForID = getListenerList(eventID, false);
+         if (listenersForID != null)
+            listenersForID.removeListener(listener);
          emit(Emit.REMOVE_LISTENER, eventID);  // note: fired after removing
       }
       
@@ -124,15 +124,13 @@ public class Emitter implements Emit.IEmitter {
     */
    @Override
    public synchronized Emitter removeAllListeners(Object eventID) {
-      if (idMap != null) { 
-         if (eventID == null) {
-            idMap.clear();
-            // no point in firing a REMOVE_LISTENER
-         }
-         else {
-            idMap.remove(eventID);
-            emit(Emit.REMOVE_LISTENER, eventID);  // note: fired after removing
-         }
+      if (eventID == null) {
+         idMap.clear();
+         // no point in firing a REMOVE_LISTENER
+      }
+      else {
+         idMap.remove(eventID);
+         emit(Emit.REMOVE_LISTENER, eventID);  // note: fired after removing
       }
       
       return this;
@@ -146,11 +144,11 @@ public class Emitter implements Emit.IEmitter {
     * @param arg0      1st arg to listener
     * @param more      additional varags
     * @param  <A0>     what listener expects as arg0
-    * @return          if event had listeners
+    * @return          if eventID had listeners
     */
    @Override
    public <A0> boolean emit(Object eventID, A0 arg0, Object...more) {
-      Emit.IListenerList<A0> e1 = getEmitter(eventID, false);
+      Emit.IListenerList<A0> e1 = getListenerList(eventID, false);
       return (e1 != null) ? e1.emit(arg0, more) : false;
    }
 
@@ -160,7 +158,7 @@ public class Emitter implements Emit.IEmitter {
     *
     * @param  eventID non-null
     * @param  arg0    1st arg to listener
-    * @return true    if event had listeners
+    * @return true    if eventID had listeners
     */
    @Override
    public <A0> boolean emit(Object eventID, A0 arg0) {
@@ -191,9 +189,9 @@ public class Emitter implements Emit.IEmitter {
          return all;
       }
             
-      Emit.IListenerList<A0> e1 = getEmitter(eventID, false);
-      if (e1 != null) 
-         return new ArrayList<Emit.IListener<A0>>(e1.listeners());
+      Emit.IListenerList<A0> listenersForID = getListenerList(eventID, false);
+      if (listenersForID != null)
+         return new ArrayList<Emit.IListener<A0>>(listenersForID.listeners());
       else
          return Collections.emptyList();
    }
@@ -218,36 +216,32 @@ public class Emitter implements Emit.IEmitter {
     * This is a good implementation, but subclasses might want to override...
     * @return Emit.IListenerList
     */
-   protected <A0> Emit.IListenerList<A0> createEmitter() {
+   protected <A0> Emit.IListenerList<A0> createListenerList() {
       return new EmitListenerList(allowDuplicates);
    }
    
    
    /**
-    * Get the emitter for the given eventID
+    * Get the ListenerList for the given eventID
     * 
     * @param eventID        non-null
     * @param forceCreation  if true, forces creation of classMap and the IListenerList
     * @param  <A0>          what listener expects as arg0
     * @return   may be null if !forceCreation
     */
-   protected synchronized <A0> Emit.IListenerList<A0> getEmitter(Object eventID, boolean forceCreation) {
-      if (idMap == null) {
-         if (forceCreation)
-            idMap = new HashMap<Object, Emit.IListenerList>();
-         else
-            return null;
-      }
-      
+   protected <A0> Emit.IListenerList<A0> getListenerList(Object eventID, boolean forceCreation) {
+
       if (eventID == null)
          throw new IllegalArgumentException("an eventID may not be null");
-      Emit.IListenerList<A0> emitter = idMap.get(eventID);
-      if (emitter == null && forceCreation) {
-         emitter = createEmitter();
-         idMap.put(eventID, emitter);
-      }  
+
+      Emit.IListenerList<A0> listenersForID = idMap.get(eventID);
+      if (!forceCreation || (listenersForID != null))
+         return listenersForID;
+
+      Emit.IListenerList<A0> newListeners = createListenerList();
+      listenersForID = idMap.putIfAbsent(eventID, newListeners);
       
-      return emitter;
+      return listenersForID != null ? listenersForID : newListeners;
    }
    
 
