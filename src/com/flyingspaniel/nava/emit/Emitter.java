@@ -97,7 +97,7 @@ public class Emitter implements Emit.IEmitter {
    
    /**
     * Removes the listener for the eventID.  
-    * If that eventID or listener is not present, nothing happens
+    * If that eventID booleanOr listener is not present, nothing happens
     * 
     * @param eventID    non-null
     * @param listener   to be removed (if null nothing happens)

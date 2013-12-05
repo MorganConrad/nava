@@ -6,7 +6,7 @@ import java.util.ArrayList;
 /**
  * Demo "main" program for usage of Emit classes with multiple listeners
  *
- * @author: Morgan Conrad
+ * @author Morgan Conrad
  * @see <a href="http://opensource.org/licenses/MIT">This software is released under the MIT License</a>
  */
 public class EmitterDemo implements Emit.IListener<String> {

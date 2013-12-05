@@ -5,10 +5,18 @@ Bringing good ideas from node.js into Java.
 
 [JavaDocs are here](http://morganconrad.github.io/nava/javadocs/)
 
+
+nava/callback
+-------------
+
+A rough approximation of callbacks.  Which can also serve as Emit.IListener.  Due to language differences (this isn't written for Java 8) it
+is only a quasi-port.  Though many of the classes are generified as aids to documentation,
+ultimately there are unchecked casts involved, so if you listen for a String but get a Date bad things will happen.
+
 nava/emit
 ---------
 
-The first package, nava.emit, is a port of a [node.js EventEmitter](http://nodejs.org/api/events.html#events_class_events_eventemitter)
+A fairly close (I think) port of a [node.js EventEmitter](http://nodejs.org/api/events.html#events_class_events_eventemitter)
 
 The behavior should match that of node.js, with these exceptions:
 
@@ -41,84 +49,29 @@ With some possible disadvantages:
  3. Due to erasure, the same class may not implement multiple Listeners.  But you can use inner classes or anonymous classes.
  4. Ultimately there are unchecked casts involved, so if you listen for a String but get a Date bad things will happen.
 
-####Example Usage, "Node Style"
+nava/fp
+---------
+ 
+A start at Functional Programming.  To use:
+ 
+ 1. Implement Fn (or Fn.Pdouble or Fn.Pint), perhaps by extending one of the Base classes
+ 2. Check out the Fns class (and FPTest) for examples
+ 3. Combine your Fn with one of the utility methods from FP, like every(), filter(), fold()...
+ 
+nava/hash
+---------
+  
+Utility code for pulling values from Maps.  Useful because JavaScript/node.js usually use { } "objects" or "hashes" to pass settings and options.
+ 
+To.java converts a raw Object "to" a different type, with two main method signatures:  
+`type typeFrom(Object in)` converts a single Object to a type  
+`type typeOr(Object in, type...or)` mimics the JavaScript || operator, returning the `or[0]` if the 1st is null</li>
+   
 
-    // ideally, String constants like "error" and "data" would be defined as constants like ERROR and DATA.
-    // on the listener side   (note - probably also want an "end" listener)
-    emitter.addListener("error", new Emit.IListener<Exception> () {
-       public void handleEvent(Exception arg0, Object... more) {
-          arg0.printStackTrace();
-          // given the code below, more[0] will hold the source object
-       }
-    });
-
-    emitter.addListener("data", new Emit.IListener<String> () {
-       public void handleEvent(Exception arg0, Object... more) {
-          someStringBuffer.append(arg0);
-       }
-    });
-
-    // on the other side (pretend we are reading a file line by line)
-     try {
-        br = new BufferedReader(new FileReader(filename));
-        String line;
-        while ((line = br.readLine()) != null)
-           emitter.fireEvent("data", line);
-
-        emitter.fireEvent("end", null);
-     }
-     catch (IOException ioe) {
-        emitter.fireEvent("error", ioe, source);   // example of adding in the source
-     }
-
-####Example Usage, "Java/Event Style"
-
-    // used by both sides  (EndEvent also needed, not shown...)
-    public class DataEvent extends EventObject {
-       private final String theData;
-       public DataEvent(Object source, String data)   {
-          super(source);
-          this.theData = data;
-       }
-       public String getData() { return theData; }
-    }
-
-    public class ExceptionEvent extends EventObject {
-       private final Exception  theException;
-       public DataEvent(Object source, Exception exception)   {
-              super(source);
-              this.theException = exception;
-       }
-       public String getException() { return theException; }
-    }
-
-    // on the listener side   (note - probably also want an "end" listener)
-    emitter.addListener(DataEvent.class, new Emit.IListener<DataEvent> () {
-       public void handleEvent(DataEvent arg0, Object... more) {
-          someStringBuffer.append(arg0.getData());
-       }
-    });
-
-    emitter.addListener(ExceptionEvent.class, new Emit.IListener<ExceptionEvent> () {
-       public void handleEvent(ExceptionEvent arg0, Object... more) {
-          arg0.getException.printStackTrace();
-       }
-    });
-
-    // on the other side (pretend we are reading a file line by line)
-     try {
-        br = new BufferedReader(new FileReader(filename));
-        String line;
-        while ((line = br.readLine()) != null)
-           emitter.fireEvent(DataEvent.class, new DataEvent(source, line));
-
-        emitter.fireEvent(EndEvent.class, null);
-     }
-     catch (IOException ioe) {
-        emitter.fireEvent(ExceptionEvent.class, new ExceptionEvent(source, ioe));
-     }
-
+Hash.java gets the value from a Map.  The major method signature is `getType(Map map, String key, Type...or)`  
+  If the key is not in the map, and or is present, `or[0]` is returned, else a Hash.NoSuchKeyException is thrown    
+  
 ###Notes
 
  1. I'm not a node.js guru
- 2. I believe this code to be thread-safe but there could be improvements.
+ 2. I believe this most of this code to be thread-safe but there could be improvements.
