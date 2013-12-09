@@ -1,12 +1,14 @@
 package com.flyingspaniel.nava.hash;
 
+import java.util.Collection;
+
 /**
  * Utilities for converting "To" other formats, with some JavaScript conventions.
  * <ul>
  *    <li>type typeFrom(Object in) convert a single Object to a type</li>
  *    <li>type typeOr(Object in, type or) mimic the JavaScript || operator, to use the 2nd arg if the 1st is null</li>
  * </ul>
- * 
+ *
  * @author Morgan Conrad
  * @see <a href="http://opensource.org/licenses/MIT">This software is released under the MIT License</a>
  * @since Copyright (c) 2013 by Morgan Conrad
@@ -67,9 +69,33 @@ public class To {
       return (in != null) ? intFrom(in) : or;
    }
 
-   public static String StringOr(Object in, String or)  {
+   public static String stringOr(Object in, String or)  {
       return  (in != null) ? in.toString() : or;
    }
+
+   public static String string(Object in) {
+      return  (in != null) ? in.toString() : "";
+   }
+
+   /**
+    * Converts a Collection of any object to a String[]
+    * @param objects  incoming
+    * @param useForNull  if an object is null, use this String to represent it
+    * @return  String[], sam size as Collection
+    */
+   public static String[] stringsFrom(Collection<?> objects, String useForNull) {
+      String[] strings = new String[objects.size()];
+      int idx = 0;
+      for (Object o : objects)
+         strings[idx++] = stringOr(o, useForNull);
+
+      return strings;
+   }
+
+   public static String trimmedString(Object in) {
+      return  (in != null) ? in.toString().trim() : "";
+   }
+
 
    /**
     * Special case, picks the first non-null Object
@@ -77,7 +103,7 @@ public class To {
     * @param or     more candidates
     * @return       First non-null Object, or null if all were null
     */
-   public static Object ObjectOr(Object in, Object... or)  {
+   public static Object objectOr(Object in, Object... or)  {
       Object result = in;
       int idx = 0;
       while (result == null && idx<or.length)
@@ -85,4 +111,6 @@ public class To {
 
       return result;
    }
+
+
 }
