@@ -6,7 +6,7 @@ import java.util.List;
 
 /**
  * Static utilities for Functional Programming
- * 
+ *
  * @author Morgan Conrad
  * @see <a href="http://opensource.org/licenses/MIT">This software is released under the MIT License</a>
  * @since Copyright (c) 2013 by Morgan Conrad
@@ -19,14 +19,14 @@ public class FP {
    public static <IN> IN fold(IN seed, Iterable<IN> ins, Fn<IN,IN> fn) {
        for (IN in : ins)
           seed = fn.fn2(seed, in);
-      
+
       return seed;
    }
 
    /**
     * Fold doubles using a primitive double (Fn.Pdouble) function
     */
-   public static double foldp(double seed, double[] ins, Fn.Pdouble fn) {     
+   public static double foldp(double seed, double[] ins, Fn.Pdouble fn) {
       for (double in : ins)
          seed = fn.fn2(seed, in);
 
@@ -43,7 +43,7 @@ public class FP {
       return seed;
    }
 
-   
+
    /**
     * FoldRight objects using a generified Fn function
     */
@@ -85,7 +85,7 @@ public class FP {
       IN in = iter.next();
       while (iter.hasNext())
          in = fn.fn2(in, iter.next());
-      
+
       return in;
    }
 
@@ -95,7 +95,7 @@ public class FP {
    public static double reducep(double[] ins, Fn.Pdouble fn) {
       if (fn instanceof Fn.Pdouble.N)
          return ((Fn.Pdouble.N)fn).fnN(ins);
-      
+
       double v = ins[0];
       for (int i=1; i<ins.length; i++)
          v = fn.fn2(v, ins[i]);
@@ -120,10 +120,10 @@ public class FP {
 
    /**
     * Filter (keep) Objects accepted by Fn to a new ArrayList.  Shallow copy.
-    * 
+    *
     * @param ins      inputObjects
     * @param filterFn return null or Boolean.FALSE to eliminate Objects
-    * @param <IN>     type of Objects 
+    * @param <IN>     type of Objects
     * @return         ArrayList, may be empty
     */
    public static<IN> ArrayList<IN> filter(Iterable<IN> ins, Fn<IN,?> filterFn) {
@@ -139,7 +139,7 @@ public class FP {
     * Map all Objects to a new List, transforming them via Fn
     * @param ins   inputObjects
     * @param fn    maps from IN to OUT
-    * @param <IN>  type of input Objects 
+    * @param <IN>  type of input Objects
     * @param <OUT> type of result Objects
     * @return      ArrayList of OUTs, same length as ins
     */
@@ -163,7 +163,7 @@ public class FP {
       for (IN in : ins)
          if (isFalse(filterFn.fn1(in)))
             return false;
-      
+
       return true;
    }
 
@@ -192,6 +192,44 @@ public class FP {
     */
    public static<IN>  boolean forAll(Iterable<IN> ins, Fn<IN,?> filterFn) {
       return every(ins, filterFn);
+   }
+
+
+   public static int indexOf(Object grail, Object...array) {
+      if (grail == null)
+         return indexOfByRef(grail, array);
+
+      for (int i=0; i<array.length; i++)
+         if (grail.equals(array[i]))
+            return i;
+
+      return -1;
+   }
+
+   public static int indexOfByRef(Object grail, Object...array) {
+      for (int i=0; i<array.length; i++)
+         if (grail == array[i])
+            return i;
+
+      return -1;
+   }
+
+   public static String join(String delim, Iterable ins) {
+      StringBuilder sb = new StringBuilder();
+      for (Object in : ins) {
+         sb.append(delim);
+         sb.append(String.valueOf(in));
+      }
+
+      return sb.substring(delim.length());
+   }
+
+   public static String join(Iterable ins) {
+      return join( ",", ins);
+   }
+
+   public static String join(Object...ins) {
+      return join( ",", ins);
    }
 
    /**
@@ -225,5 +263,5 @@ public class FP {
    }
 
 
-   
+
 }
