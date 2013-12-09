@@ -1,6 +1,6 @@
 package com.flyingspaniel.nava.hash;
 
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -16,20 +16,20 @@ import java.util.concurrent.ConcurrentHashMap;
  * If present, and the key is not in the map, the or[0] will be returned
  * If not present, and the key is not in the map, a NoSuchKeyException will be thrown
  * <p>
- * 
- * 
+ *
+ *
  */
 public class Hash {
 
    /**
     * Get the value for that key (mainly used internally)
-    * @param map  non-null
+    * @param map  may be null
     * @param key  generally non-null
     * @param mustBePresent if true, and key does not exist, will throw a NoSuchKeyException
     * @return  value, possibly null iff !mustBePresent
     */
    public static Object get(Map<String,?> map, String key, boolean mustBePresent) {
-      Object v = map.get(key);
+      Object v = (map != null) ? map.get(key) : null;
       if (v == null && mustBePresent)
          throw new NoSuchKeyException("No key exists for: " + key);
 
@@ -73,6 +73,44 @@ public class Hash {
    }
 
    /**
+    * Return the value for that key, converted to a List<Object>  (e.g. for JSON arrays)
+    * @param map  non-null
+    * @param key  generally non-null
+    * @param      create  if true, and key not present, creates new ArrayList
+    * @return     List, possibly null or empty
+    */
+   public static List<Object> getList(Map<String,Object> map, String key, boolean create) {
+      synchronized(map) {
+         Object v = get(map, key, false);
+         if (v != null || !create)
+            return (List<Object>)v;
+
+         List<Object> empty = new ArrayList<Object>();
+         map.put(key, empty);
+         return empty;
+      }
+   }
+
+   /**
+    * Return the value for that key, converted to a Map<String,Object>  (e.g. for nested JSON)
+    * @param map  non-null
+    * @param key  generally non-null
+    * @param      create  if true, and key not present, creates new LinkedHashMap
+    * @return     Map, possibly null or empty
+    */
+   public static Map<String,Object> getMap(Map<String,Object> map, String key, boolean create) {
+      synchronized(map) {
+         Object v = get(map, key, false);
+         if (v != null || !create)
+            return (Map<String,Object>)v;
+
+         Map<String,Object> empty = new LinkedHashMap<String, Object>();
+         map.put(key, empty);
+         return empty;
+      }
+   }
+
+   /**
     * Return the value for that key, converted to a String
     * @param map  non-null
     * @param key  generally non-null
@@ -82,6 +120,11 @@ public class Hash {
    public static String getString(Map<String,?> map, String key, String...or) {
       Object v = get(map, key, or.length == 0);
       return (v != null) ? v.toString() : or[0];
+   }
+
+   public static String getString(Map<String,?> map, String key) {
+      Object v = get(map, key, false);
+      return (v != null) ? v.toString() : null;
    }
 
 
@@ -95,34 +138,6 @@ public class Hash {
    public static Object getObject(Map<String,?> map, String key, Object defaultObject) {
       Object v = get(map, key, defaultObject == null);
       return (v != null) ? v : defaultObject;
-   }
-
-
-   /**
-    * Wrapper class that just calls the statics.  
-    * TODO  This may become a "true" wrapper class.
-    */
-   public static class Wrapper extends ConcurrentHashMap<String, Object> {
-
-      public Wrapper() { super(); }
-      public Wrapper(Map map) {  super(map); }
-
-      public boolean getBoolean(String key, boolean...or) {
-         // special case, default to false if nothing is found
-         return (or.length > 0) ? Hash.getBoolean(this, key, or) : Hash.getBoolean(this, key, false);
-      }
-      public double getDouble(String key, double...or) {
-         return Hash.getDouble(this, key, or);
-      }
-      public int getInt(String key, int...or) {
-         return Hash.getInt(this, key, or);
-      }
-      public String getString(String key, String...or) {
-         return Hash.getString(this, key, or);
-      }
-      public Object getObject(String key, Object defaultObject) {
-         return Hash.getObject(this, key, defaultObject);
-      }
    }
 
 

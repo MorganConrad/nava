@@ -9,7 +9,7 @@ import junit.framework.TestCase;
  */
 public class HashTest extends TestCase {
 
-   static final Hash.Wrapper map = new Hash.Wrapper();
+   static final HashWrapper.Linked map = new HashWrapper.Linked();
 
    public void setUp() throws Exception {
       super.setUp();
