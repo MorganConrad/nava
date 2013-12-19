@@ -2,3 +2,8 @@ com.flyingspaniel.nava.callback
 com.flyingspaniel.nava.emit
 com.flyingspaniel.nava.fp
 com.flyingspaniel.nava.hash
+com.flyingspaniel.nava.lib3rdparty
+com.flyingspaniel.nava.net
+com.flyingspaniel.nava.net.aws
+com.flyingspaniel.nava.request
+com.flyingspaniel.nava.utils
