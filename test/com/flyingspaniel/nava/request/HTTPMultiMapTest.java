@@ -10,7 +10,7 @@ public class HTTPMultiMapTest extends TestCase {
 
    public void testNormal() {
       HTTPMultiMap hmm = new HTTPMultiMap();
-      assertEquals("?", hmm.toString());
+      assertEquals("", hmm.toString());
 
       hmm.addFieldValuePairs("fieldFoo", "value Foo", "integer", 4, "fieldNoValue", null);
       assertEquals("fieldFoo=value Foo&integer=4&fieldNoValue=", hmm.toQueryString(URLEncoding.Impl.NONE));
@@ -21,7 +21,7 @@ public class HTTPMultiMapTest extends TestCase {
       assertEquals(";", hmm.useSemicolonQuerySeparator(false));
 
       hmm.addQueryString(null, "bar1=bar&fieldFoo=foo2nd&noValue2");
-      assertEquals("?fieldFoo=value Foo&fieldFoo=foo2nd&integer=4&fieldNoValue=&bar1=bar&noValue2=", hmm.toString());
+      assertEquals("fieldFoo=value Foo&fieldFoo=foo2nd&integer=4&fieldNoValue=&bar1=bar&noValue2=", hmm.toString());
 
       assertEquals("value Foo,foo2nd", hmm.getHeaderString("fieldFoo", URLEncoding.Impl.NONE));
       assertEquals("4", hmm.getHeaderString("integer", URLEncoding.Impl.NONE));
@@ -31,7 +31,7 @@ public class HTTPMultiMapTest extends TestCase {
       assertFalse(hmm.remove("fieldFoo", "foo2nd"));
       assertFalse(hmm.remove("field not there", "foo2nd"));
       assertEquals("[value Foo]", hmm.remove("fieldFoo").toString());
-      assertEquals("?integer=4&fieldNoValue=&bar1=bar&noValue2=", hmm.toString());
+      assertEquals("integer=4&fieldNoValue=&bar1=bar&noValue2=", hmm.toString());
 
    }
 
@@ -77,7 +77,7 @@ public class HTTPMultiMapTest extends TestCase {
    public void testBad() {
       HTTPMultiMap hmm = new HTTPMultiMap();
       hmm.addFieldValuePairs();
-      assertEquals("?", hmm.toString());
+      assertEquals("", hmm.toString());
 
       try {
          hmm.addFieldValuePairs("only one");

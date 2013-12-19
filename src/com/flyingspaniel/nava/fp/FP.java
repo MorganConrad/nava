@@ -195,6 +195,12 @@ public class FP {
    }
 
 
+   /**
+    * Find index of grail in array, usually using equals()
+    * @param grail
+    * @param array
+    * @return index, or -1 if not found
+    */
    public static int indexOf(Object grail, Object...array) {
       if (grail == null)
          return indexOfByRef(grail, array);
@@ -206,6 +212,13 @@ public class FP {
       return -1;
    }
 
+
+   /**
+    * FInd index of grail in array, using ==
+    * @param grail  may be null
+    * @param array
+    * @return index, or -1 if not found
+    */
    public static int indexOfByRef(Object grail, Object...array) {
       for (int i=0; i<array.length; i++)
          if (grail == array[i])
@@ -214,19 +227,34 @@ public class FP {
       return -1;
    }
 
+
+   /**
+    * Join Objects into a String.  nulls become empty Strings
+    * @param delim  delimiter, non-null but may be ""
+    * @param ins
+    * @return
+    */
    public static String join(String delim, Iterable ins) {
       StringBuilder sb = new StringBuilder();
       for (Object in : ins) {
          sb.append(delim);
-         sb.append(String.valueOf(in));
+         String s = (in != null) ? in.toString() : "";
+         sb.append(s);
       }
 
       return sb.substring(delim.length());
    }
 
+
+   /**
+    * Default uses comma delim
+    * @param ins
+    * @return
+    */
    public static String join(Iterable ins) {
       return join( ",", ins);
    }
+
 
    public static String join(Object...ins) {
       return join( ",", ins);

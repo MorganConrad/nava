@@ -14,6 +14,7 @@ public class RequestTest extends TestCase {
 
    static final String GOOGLE_URL = "http://www.google.com";
 
+   static final Object[] FORMS = { "form1", "red", "form2", 2.34 };
    static final Object[] QUERIES = { "foo", "bar", "total count", 1 };
    static final String[] HEADERS = { "Content-Type", "PeanutButterAndJelly", "Accept-Encoding", "EasyToBreak" };
 
@@ -26,25 +27,27 @@ public class RequestTest extends TestCase {
    public void testHTTPUtilsBASICAuthorization() {
       Request request = makeRequest();
       request.auth( "user", "password", true);
-      request.doAuth();
-      assertEquals("BASIC dXNlcjpwYXNzd29yZA==", request.headersMMap.map.get(Request.AUTHORIZATION).get(0));
+      request.doAuth(null);
+      assertEquals("Basic dXNlcjpwYXNzd29yZA==", request.headersMMap.map.get(Request.AUTHORIZATION).get(0));
       request.auth(null, null, true);
-      request.doAuth();
+      request.doAuth(null);
       assertFalse(request.headersMMap.map.containsKey(Request.AUTHORIZATION));
    }
 
 
    public void testRequest1() throws IOException {
-
       Request request = new Request("http://foo.com", HTTPMethod.GET);
       request.query(QUERIES);
-      assertEquals("http://foo.com", request.baseUrl );   // TODO
+      request.form(FORMS);
+      assertEquals("http://foo.com", request.baseUrl);   // TODO
+      assertEquals("http://foo.com?foo=bar&total+count=1&form1=red&form2=2.34", request.fullURL());
 
-      request = new Request("http://foo.com", HTTPMethod.POST);  // POST requires data
-      request.query(QUERIES);
-      String mockUploadData = "Preface to upload data:" + Request.QUERY_DATA;
-      assertEquals("Preface to upload data:foo=bar&total+count=1", request.doSubstituteMultiMapData(mockUploadData));
+      request.method(HTTPMethod.POST);  // POST requires data, and form data isn't it
+      assertEquals("http://foo.com?foo=bar&total+count=1", request.fullURL()); // form data gone from URL
+      String mockUploadData = "Preface to upload data:" + Request.FORM_DATA;
+      assertEquals("Preface to upload data:form1=red&form2=2.34", request.doSubstituteMultiMapData(mockUploadData));
    }
+
 
    public void testMethodCalcs() throws IOException {
       Request request = new Request("http://foo.com");
@@ -65,9 +68,6 @@ public class RequestTest extends TestCase {
 
 
    public void testRequestProperties() throws IOException {
-
-      Map<String, String> standardProperties = new HashMap<String, String>();
-
       Request request = new Request(GOOGLE_URL, HTTPMethod.GET);
       request.headers("Content-Type", "PeanutButterAndJelly", "Accept-Encoding", "EasyToBreak");
       request.setHeaders("Accept-Encoding", "Caesar-Cipher");  // will replace "EasyToBreak"
@@ -85,45 +85,4 @@ public class RequestTest extends TestCase {
 
 
 
-   public void testARealHTTPResponse() throws IOException {
-      Response response = new Request(GOOGLE_URL).call();
-      assertEquals("text/html; charset=ISO-8859-1", response.getContentType());
-      assertTrue(response.getBody().toString().startsWith("<!doctype html>"));
-      assertEquals("OK", response.getResponseMessage());
-      assertEquals(200, response.getResponseCode());
-      assertEquals(HTTPMethod.GET, response.getRequest().method);
-      assertEquals("[HTTP/1.1 200 OK]", response.getHeaderFields().get(null).toString());
-      assertEquals(GOOGLE_URL, response.getURL().toString() );
-
-      assertTrue(response.toString().contains("google"));
-
-      response.throwIOException();  // should do nothing
-      assertNull(response.getIOException());
-      assertTrue(response.wasSuccessful());
-   }
-
-
-   public void testMilestones() throws IOException {
-
-      Request request = new Request("malformed URL", HTTPMethod.GET);
-      Response response = request.call();
-      assertEquals(Request.Milestone.OpenConnection.errorCode(), response.getResponseCode());
-
-      request = new Request("http://this.doesnt.exist", HTTPMethod.GET);
-      response = request.call();
-      assertEquals(Request.Milestone.Connect.errorCode(), response.getResponseCode());
-
-      request = new Request(GOOGLE_URL, HTTPMethod.GET);
-      request.options("{'timeout': 1}");   // set an absurdly low connection timeout
-      response = request.call();
-      int responseCode = response.getResponseCode();
-
-      if (responseCode != 200)        // but sometimes it still works...  Step through in debugger to slow it down...
-         assertEquals(Request.Milestone.Connect.errorCode(), responseCode);
-
-      request.options(("{'timeout': 2000, 'readTimeout': 1}"));  // set an absurdly low response timeout
-      response = request.call();
-      // sometimes this works anyway...
-      assertEquals(Request.Milestone.Download.errorCode(), response.getResponseCode());
-   }
 }

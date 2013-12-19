@@ -1,9 +1,14 @@
 package com.flyingspaniel.nava.net.aws;
 
 import com.flyingspaniel.nava.net.URLEncoding;
+import com.flyingspaniel.nava.request.HTTPMethod;
+import com.flyingspaniel.nava.request.Request;
+import com.flyingspaniel.nava.request.Response;
 import junit.framework.TestCase;
 
+import java.util.Date;
 import java.util.Map;
+import java.util.Properties;
 
 /**
  * @author Morgan Conrad
@@ -12,25 +17,31 @@ import java.util.Map;
  */
 public class AWSSignedRequestsHelperTest extends TestCase {
 
-   static final String SECRET_KEY = "secretKey";
-   static final String ASSOCIATE_TAG = "associateTag";
-
    static final String QUERY_STRING = "Service=AWSECommerceService" +
          "&Version=2011-08-01" +
-         "&AssociateTag=PUT_ASSOCIATE_TAG_HERE" +
+         "&AssociateTag=PUT_ASSOCIATE_TAG_HERE" +         // this may be extraneous...
          "&Operation=ItemSearch" +
          "&SearchIndex=Books" +
          "&Keywords=harry+potter";
 
 
-   public void testReality() throws Exception {
-      // I never figured out how to get this to work with command line args...
-      String secretKey = System.getProperty(SECRET_KEY, "You are missing your secret key");
-      String associateTag = System.getProperty(ASSOCIATE_TAG, "You are missing your secret key");
+   public void testCanned() throws Exception {
+      String associateTag = System.getenv("AWS_ASSOCIATE_TAG");
+      String secretKey = System.getenv("AWS_SECRET_KEY");
 
-      // so now doing this - put into a separate class
-      secretKey = SecretDoNotCheckIn.SECRET_KEY_VALUE;
-      associateTag = SecretDoNotCheckIn.ASSOCIATE_TAG_VALUE;
+      String query = QUERY_STRING.replace("PUT_ASSOCIATE_TAG_HERE", associateTag);
+      Map<String, String> asMap = AWSSignedRequestsHelper.queryStringToMap(URLEncoding.Impl.RFC3986, query);
+
+      AWSSignedRequestsHelper helper = new AWSSignedRequestsHelper(secretKey);
+      helper.setDate(new Date(0));
+      String signed = helper.sign(asMap, associateTag, "GET");
+      assertTrue(signed.contains("Signature=aYMC4fWYMB4pBeTSafPhN0wzrMD5fN7U2XqcsbcAMoc%3D"));
+   }
+
+   public void testReality() throws Exception {
+
+      String associateTag = System.getenv("AWS_ASSOCIATE_TAG");
+      String secretKey = System.getenv("AWS_SECRET_KEY");
 
       String query = QUERY_STRING.replace("PUT_ASSOCIATE_TAG_HERE", associateTag);
       Map<String, String> asMap = AWSSignedRequestsHelper.queryStringToMap(URLEncoding.Impl.RFC3986, query);
@@ -38,12 +49,10 @@ public class AWSSignedRequestsHelperTest extends TestCase {
       AWSSignedRequestsHelper helper = new AWSSignedRequestsHelper(secretKey);
       String signed = helper.sign(asMap, associateTag, "GET");
 
-      // since Timestamp varies, not much we can do to test signed
+      Request request = new Request(signed, HTTPMethod.GET);
+      Response response = request.call();
+      String lotsOfXML = response.getBody().toString();
 
-//      Response response = Response.fromBasicRequest(signed, HTTPMethod.GET.name(), null);
-//      String lotsOfXML = response.getBody().toString();
-//
-//      assertTrue(lotsOfXML.contains("Deathly-Hallows"));
-//      System.out.println(lotsOfXML);
+      assertTrue(lotsOfXML.contains("Deathly-Hallows"));
    }
 }

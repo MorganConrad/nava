@@ -1,11 +1,14 @@
 package com.flyingspaniel.nava.request;
 
-import com.flyingspaniel.nava.emit.Emitter;
 import com.flyingspaniel.nava.hash.Hash;
 import com.flyingspaniel.nava.hash.HashWrapper;
+import com.flyingspaniel.nava.hash.To;
 import com.flyingspaniel.nava.lib3rdparty.Base64Coder;
+import com.flyingspaniel.nava.net.JRFC2617;
 import com.flyingspaniel.nava.net.URLEncoding;
 import com.flyingspaniel.nava.net.aws.AWSSignedRequestsHelper;
+import com.flyingspaniel.nava.utils.Android2Lacks;
+import com.flyingspaniel.nava.utils.EmittingCallbackFn;
 import com.flyingspaniel.nava.utils.Utils;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
@@ -14,6 +17,7 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.ProtocolException;
 import java.net.URL;
+import java.security.GeneralSecurityException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -23,7 +27,7 @@ import java.util.concurrent.Callable;
  * @see <a href="http://opensource.org/licenses/MIT">This software is released under the MIT License</a>
  * @since Copyright (c) 2013 by Morgan Conrad
  */
-public class Request extends Emitter implements Callable<Response> {
+public class Request extends EmittingCallbackFn<String,Response> implements Callable<Response> {
 
    public static final String FORM_DATA = "${FORM_DATA}";
    public static final String HEADER_DATA = "${HEADER_DATA}";
@@ -31,26 +35,15 @@ public class Request extends Emitter implements Callable<Response> {
 
    static final String ACCEPT_CHARSET = "Accept-Charset";
    static final String AUTHORIZATION = "Authorization";
+   static final String BASIC_ = "Basic ";
+   static final String DIGEST_ = "Digest ";
 
-   /**
-    * These defaults should be reasonable, but are changeable via setters
-    *
-    * @see #acceptCharset(String)
-    * @see #uploadSubstitution(boolean)
-    * @see #useStrictRFC3986(boolean)
-    */
-//   protected String acceptCharset = URLEncoding.UTF8_CHARSET;
-//   protected boolean uploadSubstitution = true;
-     protected boolean useStrictRFC3986 = false;
+
+   protected boolean useStrictRFC3986 = false;
    protected boolean methodMustUpload = false;
-//   protected int maxRedirects  = 10;
+   protected int maxRetries  = 3;
 
    protected HashWrapper.Linked options = new HashWrapper.Linked();
-
-   // TODO
-//   protected List uploadList;
-
-  // protected Map<String,String> awsMap = null;
 
    /**
     * Three possible multimaps used for the query, header, and formData
@@ -73,6 +66,7 @@ public class Request extends Emitter implements Callable<Response> {
    protected OutputStream pipeTo = null;
 
    protected volatile Milestone attempting = Milestone.None;
+   protected Response response401 = null;
 
    /**
     * Enum for the steps in the HTTPRequest.call() method, used for error-tracking...
@@ -135,6 +129,19 @@ public class Request extends Emitter implements Callable<Response> {
 
    public Request() {
       this("", null, null);
+   }
+
+   @Override
+   public Response callback(Exception ex, String urlOrOptions, Object... more) throws Exception {
+      failSlow(ex, urlOrOptions, more);
+      if (Utils.smellsLikeJSON(urlOrOptions)) {
+         this.baseUrl = "";
+         options(urlOrOptions);
+      }
+      else
+         this.baseUrl= urlOrOptions;
+
+      return call();
    }
 
 
@@ -392,24 +399,22 @@ public class Request extends Emitter implements Callable<Response> {
    }
 
 
-   public Response call()  {
-
-      int redirectCountdown = options.getInt("maxRedirects", 10);
-      Response response;
+   public Response call() {
+      int retryCount = 0;
+      Response response = null;
 
       do {
          response = call1();
-         String redirect = response.getRedirect();
-         if (redirect != null)
-            this.baseUrl = redirect;  // ???
-      }
-      while (--redirectCountdown > 0);
+         response401 = null;
+         if (response.getResponseCode() == 401) {
+            response401 = response;
+         }
+      } while ((++retryCount < maxRetries) && (response401 != null));
 
       return response;
    }
 
 
-   // one try, may return a redirect...
    public Response call1()  {
 
       HttpURLConnection conn = null;
@@ -462,22 +467,24 @@ public class Request extends Emitter implements Callable<Response> {
 
 
    /**
-    * Converts JSON String to a Map
+    * Converts JSON String to a Map.  I'm using org.json.simple but subclasses could change
     * @param jsonString if null or empty return empty map
     * @return  Map, may be empty
     */
-   public static Map<String,Object> JSONtoMap(String jsonString) {
+   public Map<String,Object> JSONtoMap(String jsonString) {
       if ((jsonString == null) || (jsonString.length() == 0))
          return Collections.emptyMap();
 
       return (JSONObject) JSONValue.parse(jsonString);
    }
 
-
-//   protected Map<String,?> getMap(Map options, String key) {
-//      Object value = options.get(key);
-//      return (Map<String, ?>)value;
-//   }
+   /**
+    * Converts Object to a String for uploading
+    * Subclasses might want to override and do JSON, XML, etc...
+    */
+   protected String objectToStringForUpload(Object object) {
+      return To.stringOr(object, "");
+   }
 
 
    protected long copy(InputStream input, OutputStream output, boolean emit) throws IOException {
@@ -542,6 +549,10 @@ public class Request extends Emitter implements Callable<Response> {
     * @throws IOException
     */
    protected HttpURLConnection openConnection() throws IOException {
+      if (method == null) {
+         method = methodMustUpload ? HTTPMethod.POST : HTTPMethod.GET;
+      }
+
       URL url = new URL(fullURL());
       return (HttpURLConnection) url.openConnection();
    }
@@ -551,7 +562,12 @@ public class Request extends Emitter implements Callable<Response> {
     * Split off for testing, but a subclass may want to override
     * @return  full URL + and query/form stuff
     */
-   protected String fullURL() {
+   protected String fullURL() throws IOException {
+
+      Map awsMap = options.getMap("aws", false);
+      if (awsMap != null)
+         return doAWS(awsMap);
+
       String query = queryMMap.toQueryString(getEncoding());
       String form = (method == HTTPMethod.GET) ? formDataMMap.toQueryString(getEncoding()) : "";
 
@@ -571,21 +587,21 @@ public class Request extends Emitter implements Callable<Response> {
 
       return sb.toString();
    }
-   /**
-    * Split off mainly for testing, but a subclass might want to override
-    */
+
+
+
    protected HttpURLConnection prepareConnection(HttpURLConnection conn) {
-      conn.setRequestProperty(ACCEPT_CHARSET, options.getString(ACCEPT_CHARSET, URLEncoding.UTF8_CHARSET));
-      doAuth();
+      conn.setRequestProperty(ACCEPT_CHARSET, options.getString("acceptCharset", URLEncoding.UTF8_CHARSET));
+      conn.setInstanceFollowRedirects(options.getBoolean("followRedirect", true));
+      conn.setUseCaches(options.getBoolean("useCaches", true));
+
+      doAuth(conn);
       headersMMap.applyHeadersToConnection(conn);
 
       int timeout = options.getInt("timeout", 2000);
       conn.setConnectTimeout(timeout);
       conn.setReadTimeout(options.getInt("readTimeout", timeout));
 
-      if (method == null) {
-         method = methodMustUpload ? HTTPMethod.POST : HTTPMethod.GET;
-      }
       conn.setDoInput(method.doesInput());
       conn.setDoOutput(method.doesOutput());
 
@@ -596,26 +612,49 @@ public class Request extends Emitter implements Callable<Response> {
          throw new RuntimeException(e);  // cannot happen
       }
 
-//      if (awsMap != null) {
-//         AWSSignedRequestsHelper helper = new AWSSignedRequestsHelper(awsMap.get("secret"));
-//         Map<String, String> paramsForAWS = new HashMap<String,String>();
-//         paramsForAWS.putAll(queryMMap.toSingleMap(true, true));
-//         if (this.method == HTTPMethod.GET)
-//            paramsForAWS.putAll(formDataMMap.toSingleMap(true, true));
-//
-//         helper.sign(paramsForAWS, awsMap.get("key"));
-//      }
+
       return conn;
    }
 
-   protected void doAuth() {
-      headersMMap.remove(AUTHORIZATION);
+
+   protected void doAuth(HttpURLConnection conn) {
+      headersMMap.remove(AUTHORIZATION);   // remove???
       Map authMap = options.getMap("auth", false);
       if (authMap != null) {
          String user = Hash.getString(authMap, "user");
          String pass = Hash.getString(authMap, "pass");
-         String encodedCredential = Base64Coder.encodeString(user + ":" + pass);
-         headersMMap.add(AUTHORIZATION, "BASIC " + encodedCredential);
+         if (Hash.getBoolean(authMap, "sendImmediately", false)) {   // must be basic
+            String encodedCredential = Base64Coder.encodeString(user + ":" + pass);
+            headersMMap.add(AUTHORIZATION, BASIC_ + encodedCredential);
+         }
+         else if (response401 != null) {
+            String challenge = response401.connection.getHeaderField("WWW-Authenticate");
+            if (challenge.startsWith(BASIC_)) {
+               String encodedCredential = Base64Coder.encodeString(user + ":" + pass);
+               headersMMap.add(AUTHORIZATION, BASIC_ + encodedCredential);
+            } else if (challenge.startsWith(DIGEST_)) {
+               JRFC2617 authenticator = new JRFC2617(challenge);
+               String path = conn.getURL().getPath();
+               String encodedCredential = authenticator.createResponse(user, pass, null, method.name(), path);
+               headersMMap.setFieldValuePairs(AUTHORIZATION, DIGEST_ + encodedCredential);
+            } else
+               throw new UnsupportedOperationException(challenge);
+         }
+      }
+   }
+
+
+   protected String doAWS(Map awsMap) throws IOException {
+      // collect all query and form params
+      HTTPMultiMap all = new HTTPMultiMap(false, queryMMap.getMap());
+      all.addMultiMap(formDataMMap);
+      Map<String, String> params = all.toSingleMap(true, true);
+      try {
+         AWSSignedRequestsHelper awsSigner = new AWSSignedRequestsHelper(Hash.getString(awsMap, "secret"));
+         return awsSigner.sign(params, Hash.getString(awsMap, "key"), method.getMethodName());
+      }
+      catch (GeneralSecurityException gse) {
+         throw Android2Lacks.IOException("AWSSignedRequestsHelper failure", gse);
       }
    }
 
@@ -642,13 +681,8 @@ public class Request extends Emitter implements Callable<Response> {
             if (uploadMe instanceof InputStream) {  // should probably use pipe() instead
                copy( (InputStream)uploadMe, outputStream, false);
             }
-            else if (uploadMe instanceof Map) {
-               JSONObject jsonObject = new  JSONObject((Map)uploadMe);
-               String s = jsonObject.toJSONString();
-               outputStream.write(s.getBytes());
-            }
             else {
-               String s = uploadMe.toString();
+               String s = objectToStringForUpload(uploadMe);
                doSubstituteMultiMapData(s);
                outputStream.write(s.getBytes());
             }
@@ -659,7 +693,8 @@ public class Request extends Emitter implements Callable<Response> {
          }
       }
 
-      else if (this.method.doesOutput()) {
+      // no upload data was provided, use form data
+      else {
          String s = formDataMMap.toQueryString(getEncoding());
          outputStream.write(s.getBytes());
       }

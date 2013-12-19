@@ -19,6 +19,8 @@ public class Response {
    // backlink to the Request that triggered this HTTPResponse
    protected final Request request;
 
+   protected final HttpURLConnection connection;
+
    /*
     * these are always taken from the HttpURLConnection, or else are null
     */
@@ -48,6 +50,7 @@ public class Response {
     */
    public Response(Request request, HttpURLConnection connection, Object body) {
       this.request = request;
+      this.connection = connection;
       contentType = connection.getContentType();
       headerFields = connection.getHeaderFields();
       url = connection.getURL();
@@ -84,10 +87,16 @@ public class Response {
     */
    public Response(Request request, HttpURLConnection connection, IOException ioe, int milestoneCode) {
       this.request = request;
+      this.connection = connection;
       if (connection != null) {
          contentType = connection.getContentType();
          headerFields = connection.getHeaderFields();
          url = connection.getURL();
+         try {
+            milestoneCode = connection.getResponseCode();
+         } catch (IOException e) {
+            ; // use what got input instead...
+         }
       }
       else {
          contentType = null;

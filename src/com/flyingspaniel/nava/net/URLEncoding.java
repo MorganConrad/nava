@@ -1,12 +1,11 @@
 package com.flyingspaniel.nava.net;
 
 
-import com.flyingspaniel.nava.utils.Utils;
+import com.flyingspaniel.nava.utils.Android2Lacks;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.util.AbstractMap;
 import java.util.Map;
 
 
@@ -142,7 +141,8 @@ public interface URLEncoding {
          String[] values = (split.length > 1) ? decode(split[1]).split(COMMA) : EMPTY;
          for (int i=0; i<values.length; i++)
             values[i] = decode(values[i]);
-         return new AbstractMap.SimpleImmutableEntry<String, String[]>(decode(split[0]), values);
+
+         return new Android2Lacks.ImmutableMapEntry<String, String[]>(split[0], values);
       }
 
 

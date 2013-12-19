@@ -8,10 +8,7 @@ import java.io.UnsupportedEncodingException;
 import java.security.GeneralSecurityException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Map;
-import java.util.TimeZone;
-import java.util.TreeMap;
+import java.util.*;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -38,6 +35,8 @@ public class AWSSignedRequestsHelper {
    private SecretKeySpec secretKeySpec = null;
    private Mac mac = null;
 
+   // mainly used for unit tests
+   private Date useThisDate = null;
 
    /**
     * Constructor
@@ -86,6 +85,13 @@ public class AWSSignedRequestsHelper {
       return url;
    }
 
+   /**
+    * Sign using the default AWS.ENDPOINT, AWS.REQUEST_URI
+    * @param params
+    * @param awsAccessKeyId
+    * @param method
+    * @return
+    */
    public String sign(Map<String, String> params, String awsAccessKeyId, String method) {
       return sign(params, awsAccessKeyId, method, AWS.ENDPOINT, AWS.REQUEST_URI);
    }
@@ -109,6 +115,14 @@ public class AWSSignedRequestsHelper {
 
 
    /**
+    * Use with extreme caution, mainly for unit tests
+    * @param date  non-null
+    */
+   public void setDate(Date date) {
+      useThisDate = new Date(date.getTime());
+   }
+
+   /**
     * Converts a query string to a (sorted) Map
     *
     * @param encoding
@@ -121,6 +135,8 @@ public class AWSSignedRequestsHelper {
 
       return hmm.toSingleMap(true, true);
    }
+
+
 
 
 
@@ -141,7 +157,10 @@ public class AWSSignedRequestsHelper {
 
 
    public String timestamp() {
-      return dateFormat.format(calendar.getTime());
+      if (useThisDate != null)
+         return dateFormat.format(useThisDate);
+      else
+         return dateFormat.format(calendar.getTime());
    }
 
 
