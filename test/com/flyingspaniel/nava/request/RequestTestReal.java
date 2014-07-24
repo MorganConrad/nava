@@ -138,11 +138,12 @@ public class RequestTestReal extends TestCase {
       assertTrue(body.contains("\"user\": \"user\""));
    }
 
-   // never got this to work...
-   public void doNotRuntestDigestAuth1() {
+
+   public void testDigestAuth1() {
       Request request = new Request(HTTPBIN + "digest-auth/auth/user/passwd", HTTPMethod.GET);
       request.auth("user", "passwd", false);  // false = delayed auth
       request.options("{ \"useCaches\": false }");
+      request.cookie("needed after commit 4870f70");  // as per https://github.com/kennethreitz/httpbin/issues/124
       Response response = request.call();
       String body = response.getBody().toString();
       assertTrue(body.contains("\"authenticated\": true"));

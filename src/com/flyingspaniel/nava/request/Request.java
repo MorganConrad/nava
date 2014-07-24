@@ -200,6 +200,12 @@ public class Request extends EmittingCallbackFn<String,Response> implements Call
    }
 
 
+   public Request cookie(String value) {
+      if (value != null)
+         headersMMap.add("Cookie", value);
+
+      return this;
+   }
 
    /**
     * Adds form data

@@ -31,4 +31,16 @@ public class Utils {
    public static boolean smellsLikeJSON(String in) {
       return (in != null) && in.trim().startsWith("{");
    }
+
+   public static String[] pop(String[] in) {
+      String[] copy = new String[in.length-1];
+      System.arraycopy(in, 0, copy, 1, in.length-1);
+      return copy;
+   }
+
+   public static String[] shift(String[] in) {
+      String[] copy = new String[in.length-1];
+      System.arraycopy(in, 1, copy, 0, in.length-1);
+      return copy;
+   }
 }
