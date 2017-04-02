@@ -27,7 +27,7 @@ The behavior should match that of node.js, with these exceptions:
     Strings are a good choice, but an Enum or the Class of the Event (if you use traditional Java Event objects) makes a lot of sense too.
 
 
-####Why use this instead of Java's javax.swing.event.EventListenerList?
+#### Why use this instead of Java's javax.swing.event.EventListenerList?
 
 Perhaps because you really like how node.js does it.   But there are other advantages over classic Swing EventListeners.
 
@@ -71,7 +71,7 @@ To.java converts a raw Object "to" a different type, with two main method signat
 Hash.java gets the value from a Map.  The major method signature is `getType(Map map, String key, Type...or)`  
   If the key is not in the map, and or is present, `or[0]` is returned, else a Hash.NoSuchKeyException is thrown    
   
-###Notes
+### Notes
 
  1. I'm not a node.js guru
  2. I believe this most of this code to be thread-safe but there could be improvements.
